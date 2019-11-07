@@ -14,9 +14,12 @@ osx:
 brew install pipenv
 ```
 
-# how to run server
+# how to run server and see results
 ```
 $ pipenv run uvicorn main:app --reload
+
+# following should be done in different terminal
+$ curl http://127.0.0.1:8000/predict/
 ```
 
 # endpoint
