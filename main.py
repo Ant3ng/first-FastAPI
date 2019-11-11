@@ -1,23 +1,22 @@
-from fastapi import FastAPI, File, UploadFile
-from PIL import Image
-import numpy as np
-from starlette.requests import Request
-import requests, io
+from fastapi import FastAPI
+from pydantic import BaseModel
+
 from pathlib import Path
+from PIL import Image
+import os, base64, io
 
+import numpy as np
 import torch
-from torch import nn, optim
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch import nn
 
-import os
 
 app = FastAPI()
 
-def predict():
+def predict(img_path):
+    # decode for loading img
+    img = base64.b64decode(img_path.enc_img)
     # convert RGB into gray scale
-    path = Path(os.getcwd())/"dataset/digit_2.png"
-    img = Image.open(path).resize((28, 28)).convert("L")
+    img = Image.open(io.BytesIO(img)).resize((28, 28)).convert("L")
     img = torch.tensor(np.array(img)).view(-1).float()
 
     # load pre-trained model
@@ -32,6 +31,10 @@ def predict():
     return pred.item()
 
 
-@app.get("/predict/")
-async def cast_predict():
-    return {"pred": predict()}
+class Item(BaseModel):
+    enc_img: bytes
+
+@app.post("/pred/")
+async def return_pred(file: Item):
+    return predict(file)
+
