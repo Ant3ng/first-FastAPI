@@ -7,26 +7,9 @@ import base64
 import io
 import numpy as np
 import torch
-from torch import nn
+from fastai_resnet import resnet_model
 
 app = FastAPI()
-
-
-class Lambda(nn.Module):
-    def __init__(self, func):
-        super().__init__()
-        self.func = func
-
-    def forward(self, x):
-        return self.func(x)
-
-
-def flatten(x):
-    return x.view(len(x), -1)
-
-
-def mnist_resize(x):
-    return x.view(-1, 1, 28, 28)
 
 
 def predict(img_path):
@@ -37,18 +20,14 @@ def predict(img_path):
     img = torch.tensor(np.array(img)).view(-1, 1, 28, 28).float()
 
     # load pre-trained model
-    weight = Path(os.getcwd()) / "weight_cnn.pth"
-    model = nn.Sequential(
-        Lambda(mnist_resize),
-        nn.Conv2d(1, 8, 5, 2, 2), nn.ReLU(),
-        nn.Conv2d(8, 16, 3, 2, 1), nn.ReLU(),
-        nn.Conv2d(16, 32, 3, 2, 1), nn.ReLU(),
-        nn.Conv2d(32, 32, 3, 2, 1), nn.ReLU(),
-        nn.AdaptiveAvgPool2d(1),
-        Lambda(flatten),
-        nn.Linear(32, 10)
-    )
+    weight = Path(os.getcwd()) / "fastai_resnet.pt"
+    model = resnet_model()
     model.load_state_dict(torch.load(weight))
+
+    # bs=1 prediction with BatchNorm should be in eval mode
+    # Otherwise, you'll encounter error
+    # https://discuss.pytorch.org/t/error-expected-more-than-1-value-per-channel-when-training/26274
+    model.eval()
 
     # inference
     pred = model(img)

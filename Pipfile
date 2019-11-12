@@ -25,6 +25,7 @@ autopep8 = "*"
 jupyter = "*"
 notebook = "*"
 pillow = "*"
+fastai = "*"
 
 [requires]
 python_version = "3.7"
