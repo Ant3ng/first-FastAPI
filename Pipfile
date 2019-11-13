@@ -26,6 +26,7 @@ jupyter = "*"
 notebook = "*"
 pillow = "*"
 fastai = "*"
+jupyter-contrib-nbextensions = "*"
 
 [requires]
 python_version = "3.7"
