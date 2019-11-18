@@ -7,7 +7,9 @@ import base64
 import io
 import numpy as np
 import torch
+import torch.nn.functional as F
 from models.spatial_tfm_nw import Stnet
+import json
 
 
 app = FastAPI()
@@ -18,7 +20,7 @@ def normalize(x):
     return (x - mean) / std
 
 
-def predict(img_path):
+def preprocess_img(img_path):
     # decode for loading img
     img = base64.b64decode(img_path.enc_img)
     # convert RGB into gray scale
@@ -33,6 +35,27 @@ def predict(img_path):
     # So we need to rescale img, and then normalize
     img = normalize(img / 255)
 
+    return img
+
+
+def check_confidence(conf, threshold):
+    if conf > threshold:
+        conf = np.round(np.array(conf, np.float32), 6)
+        print("This model's confidence ({}) is higher than threshold ({})".format(conf, threshold))
+        return "Yes"
+    print("This model's confidence ({}) is lower than threshold ({})".format(conf, threshold))
+    return "No"
+
+
+def predict(img_path):
+
+    threshold = .50
+    # threshold = .25
+    # threshold = .10
+    # threshold = .05
+
+    img = preprocess_img(img_path)
+
     # load pre-trained model
     weight = Path(os.getcwd()) / "pre-trained/stn_30epoch.pt"
     model = Stnet()
@@ -45,9 +68,31 @@ def predict(img_path):
 
     # inference
     pred = model(img)
-    pred = torch.argmax(pred, 1)
 
-    return pred.item()
+    # How degree this model is confident to pred
+    # prob = (torch.exp(pred) / torch.exp(pred).sum()).tolist()[0]
+    prob = F.softmax(torch.tensor(pred).float()).tolist()[0]
+
+    # score order which this model makes
+    pred_order = torch.argsort(torch.tensor(prob), descending=True).tolist()
+
+    # compare which is higher between pred and threshold
+    check_conf = json.dumps(
+        {'Confidence is higher than threshold? ->': check_confidence(prob[pred_order[0]], threshold)})
+
+    pred = json.dumps({'Pred num': pred_order[0]})  # == torch.argmax(pred, 1).item()
+    pred_order = json.dumps({'Pred order': pred_order})
+
+    # To make prob more intuitive
+    prob = np.round(np.array(prob, np.float32), 6)
+    prob = json.dumps({i: str(prob[i]) for i in range(10)}, indent=4)
+
+    print("Confidence is", prob)
+    print(pred_order)
+    print(pred)
+    print(check_conf)
+
+    return pred, pred_order, prob, json.dumps({"threshold": threshold}), check_conf
 
 
 class Item(BaseModel):

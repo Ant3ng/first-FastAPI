@@ -19,6 +19,7 @@ requests = "*"
 pathlib = "*"
 pillow = "*"
 torch = "*"
+click = "*"
 
 [requires]
 python_version = "3.7"
