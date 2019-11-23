@@ -9,8 +9,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from models.spatial_tfm_nw import Stnet
-import json
-
 
 app = FastAPI()
 
@@ -20,9 +18,9 @@ def normalize(x):
     return (x - mean) / std
 
 
-def preprocess_img(img_path):
+def preprocess_img(img_item):
     # decode for loading img
-    img = base64.b64decode(img_path.enc_img)
+    img = base64.b64decode(img_item.enc_img)
     # convert RGB into gray scale
     img = Image.open(io.BytesIO(img)).resize((28, 28)).convert("L")
     # pixel of input image is opposite to MNIST
@@ -40,21 +38,12 @@ def preprocess_img(img_path):
 
 def check_confidence(conf, threshold):
     if conf > threshold:
-        conf = np.round(np.array(conf, np.float32), 6)
-        print("This model's confidence ({}) is higher than threshold ({})".format(conf, threshold))
         return "Yes"
-    print("This model's confidence ({}) is lower than threshold ({})".format(conf, threshold))
     return "No"
 
 
-def predict(img_path):
-
-    threshold = .50
-    # threshold = .25
-    # threshold = .10
-    # threshold = .05
-
-    img = preprocess_img(img_path)
+def predict(img_item):
+    img = preprocess_img(img_item)
 
     # load pre-trained model
     weight = Path(os.getcwd()) / "pre-trained/stn_30epoch.pt"
@@ -67,36 +56,32 @@ def predict(img_path):
     model.eval()
 
     # inference
-    pred = model(img)
+    pred_num = model(img)
 
     # How degree this model is confident to pred
     # prob = (torch.exp(pred) / torch.exp(pred).sum()).tolist()[0]
-    prob = F.softmax(torch.tensor(pred).float()).tolist()[0]
+    prob = F.softmax(torch.tensor(pred_num).float()).tolist()[0]
 
     # score order which this model makes
     pred_order = torch.argsort(torch.tensor(prob), descending=True).tolist()
 
     # compare which is higher between pred and threshold
-    check_conf = json.dumps(
-        {'Confidence is higher than threshold? ->': check_confidence(prob[pred_order[0]], threshold)})
-
-    pred = json.dumps({'Pred num': pred_order[0]})  # == torch.argmax(pred, 1).item()
-    pred_order = json.dumps({'Pred order': pred_order})
+    check_conf = check_confidence(prob[pred_order[0]], img_item.threshold)
 
     # To make prob more intuitive
-    prob = np.round(np.array(prob, np.float32), 6)
-    prob = json.dumps({i: str(prob[i]) for i in range(10)}, indent=4)
+    prob = (np.round(np.array(prob, float), 6))
+    prob = {i: prob[i] for i in range(10)}
 
-    print("Confidence is", prob)
-    print(pred_order)
-    print(pred)
-    print(check_conf)
-
-    return pred, pred_order, prob, json.dumps({"threshold": threshold}), check_conf
+    return {'pred_num': pred_order[0],
+            'pred_order': pred_order,
+            'prob': prob,
+            'threshold': img_item.threshold,
+            'check_conf': check_conf}
 
 
 class Item(BaseModel):
     enc_img: bytes
+    threshold: float
 
 
 @app.post("/pred/")
