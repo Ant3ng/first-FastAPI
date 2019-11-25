@@ -4,21 +4,22 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+flake8 = "*"
+autopep8 = "*"
+jupyter = "*"
+notebook = "*"
 
 [packages]
+fastai = "*"
 numpy = "*"
 matplotlib = "*"
-torch = "*"
 fastapi = {extras = ["all"],version = "*"}
-pil = "*"
 starlette = "*"
 requests = "*"
 pathlib = "*"
-os = "*"
-sys = "*"
-json = "*"
-io = "*"
-base64 = "*"
+pillow = "*"
+torch = "*"
+click = "*"
 
 [requires]
 python_version = "3.7"
